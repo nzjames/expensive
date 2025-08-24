@@ -1,14 +1,16 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
-export const expenseTemplates = sqliteTable(
-  'expense_templates',
+import { SeriesStatus } from '../../data';
+
+export const expenseSeries = sqliteTable(
+  'expense_series',
   {
     id: integer('id').primaryKey(),
     name: text('name').notNull(),
     provider: text('provider'),
     type: text('type'),
-    status: text('status').notNull().default('active'),
+    status: text('status').notNull().default(SeriesStatus.Active),
     frequencyInterval: integer('frequency_interval').notNull(),
     frequencyUnit: text('frequency_unit').notNull(),
     paymentMethod: text('payment_method'),
@@ -22,29 +24,48 @@ export const expenseTemplates = sqliteTable(
     updatedAt: text('updated_at'),
   },
   (t) => [
-    index('ix_templates_status').on(t.status),
-    index('ix_templates_nextDate').on(t.nextDate),
+    index('ix_series_status').on(t.status),
+    index('ix_series_nextDate').on(t.nextDate),
   ]
 );
 
-export const expenseInstances = sqliteTable(
-  'expense_instances',
+export const expenseHistory = sqliteTable(
+  'expense_history',
   {
     id: integer('id').primaryKey(),
-    templateId: integer('template_id').references(() => expenseTemplates.id),
-    expectedDate: text('expected_date').notNull(),
+
+    // Link back to the parent series for grouping/reporting
+    seriesId: integer('series_id').references(() => expenseSeries.id),
+
+    // Snapshot fields copied from expense_series at creation time
+    name: text('name').notNull(),
+    provider: text('provider'),
+    type: text('type'),
+    paymentMethod: text('payment_method'),
+    amountCents: integer('amount_cents').notNull(),
+
+    // snapshot cadence for categorising and auditing
+    frequencyInterval: integer('frequency_interval').notNull(),
+    frequencyUnit: text('frequency_unit').notNull(), // "days" | "weeks" | "months" | "years"
+
+
+    // The “fixed in history” date
+    expenseDate: text('expense_date').notNull(),
+
+    // Resolution fields
     actualDate: text('actual_date'),
-    amountCents: integer('amount_cents'),
     status: text('status').default('pending'),
     note: text('note'),
+
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
   },
   (t) => [
-    uniqueIndex('ux_instances_template_expectedDate').on(t.templateId, t.expectedDate),
-    index('ix_instances_status_expectedDate').on(t.status, t.expectedDate),
-    index('ix_instances_template_status').on(t.templateId, t.status),
+    uniqueIndex('ux_history_series_expenseDate').on(t.seriesId, t.expenseDate),
+    index('ix_history_status_expenseDate').on(t.status, t.expenseDate),
+    index('ix_history_series_status').on(t.seriesId, t.status),
   ]
 );
 
-export const tables = { expenseTemplates, expenseInstances };
+
+export const tables = { expenseSeries, expenseHistory };
 export type TableName = keyof typeof tables;

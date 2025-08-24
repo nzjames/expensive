@@ -15,8 +15,10 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
-		"seed": "tsx src/lib/db/seed.ts",
 		"gen:expenses": "tsx cli/generate-expenses.ts",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"seed:dev": "tsx src/lib/server/db/seed.ts",
 		"job:ensure-next:dev": "tsx src/lib/server/jobs/cli/ensure-next.ts",
 		"job:ensure-next": "node build/src/lib/server/jobs/cli/ensure-next.js"
 	},

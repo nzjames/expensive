@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db/client';
-import { expenseInstances, expenseTemplates } from '$lib/server/db/schema';
+import { expenseHistory, expenseSeries } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { addMonths, addWeeks, addDays, formatISO, parseISO } from 'date-fns';
 
@@ -12,31 +12,31 @@ function advance(iso: string, n: number, unit: string) {
 
 export async function finalizeInstance(instanceId: number, outcome: 'verified' | 'skipped' | 'cancelled', opts = {}) {
   await db.transaction(async (tx) => {
-    const [inst] = await tx.select().from(expenseInstances).where(eq(expenseInstances.id, instanceId)).limit(1);
+    const [inst] = await tx.select().from(expenseHistory).where(eq(expenseHistory.id, instanceId)).limit(1);
     if (!inst) throw new Error('instance not found');
 
     if (inst.status !== 'pending' && inst.status !== 'posted') return;
 
-    await tx.update(expenseInstances).set({
+    await tx.update(expenseHistory).set({
       status: outcome,
       finalizedAt: new Date().toISOString(),
       ...opts
-    }).where(eq(expenseInstances.id, instanceId));
+    }).where(eq(expenseHistory.id, instanceId));
 
-    const [tpl] = await tx.select().from(expenseTemplates).where(eq(expenseTemplates.id, inst.templateId)).limit(1);
+    const [tpl] = await tx.select().from(expenseSeries).where(eq(expenseSeries.id, inst.templateId)).limit(1);
     if (!tpl) return;
     if (tpl.status !== 'active') return;
 
     const nextDate = advance(inst.expectedDate, tpl.frequencyInterval, tpl.frequencyUnit);
-    await tx.update(expenseTemplates).set({ nextDate, updatedAt: new Date().toISOString() }).where(eq(expenseTemplates.id, tpl.id));
+    await tx.update(expenseSeries).set({ nextDate, updatedAt: new Date().toISOString() }).where(eq(expenseSeries.id, tpl.id));
 
     // ensure the next instance exists
-    const existing = await tx.select().from(expenseInstances)
-      .where(eq(expenseInstances.expectedDate, nextDate))
-      .where(eq(expenseInstances.templateId, tpl.id)).limit(1);
+    const existing = await tx.select().from(expenseHistory)
+      .where(eq(expenseHistory.expectedDate, nextDate))
+      .where(eq(expenseHistory.templateId, tpl.id)).limit(1);
 
     if (!existing.length) {
-      await tx.insert(expenseInstances).values({
+      await tx.insert(expenseHistory).values({
         templateId: tpl.id,
         expectedDate: nextDate,
         amountCents: tpl.amountCents,
