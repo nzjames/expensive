@@ -4,6 +4,7 @@
 	import EditableCellCurrency from '$lib/components/EditableCellCurrency.svelte';
 	import EditableSelect from '$lib/components/EditableSelect.svelte';
 	import EditableCellDate from '$lib/components/EditableCellDate.svelte';
+	import NewSeriesRow from '$lib/components/NewSeriesRow.svelte';
 	import { formatCurrency } from '$lib/helpers/currency';
 	import { SeriesStatus, FrequencyUnit } from '$lib/data';
 
@@ -45,6 +46,10 @@
 			// Optionally revert the change or show an error
 		}
 	}
+
+  function onNewRow(e: CustomEvent<any>) {
+    data = [e.detail, ...data];
+  }
 
 	function calcTotal(data, totals) {
 		data.forEach((row) => {
@@ -109,6 +114,7 @@
 						<EditableCellDate table={tableName} value={row.verifiedDate} rowId={row.id} field="verifiedDate" on:update={handleUpdate} />
 					</tr>
 				{/each}
+				<NewSeriesRow on:newRow={onNewRow} />
 			</tbody>
 		</table>
 	{/if}
