@@ -15,6 +15,13 @@
       "when": 1755922962230,
       "tag": "0001_rainy_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1757128674130,
+      "tag": "0002_abandoned_true_believers",
+      "breakpoints": true
     }
   ]
 }

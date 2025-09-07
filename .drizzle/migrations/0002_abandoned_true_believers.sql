@@ -1,0 +1,1 @@
+ALTER TABLE `expense_series` ADD `rrule` text;

@@ -13,6 +13,7 @@ export const expenseSeries = sqliteTable(
     status: text('status').notNull().default(SeriesStatus.Active),
     frequencyInterval: integer('frequency_interval').notNull(),
     frequencyUnit: text('frequency_unit').notNull(),
+    rrule: text('rrule'),
     paymentMethod: text('payment_method'),
     amountCents: integer('amount_cents').notNull(),
     contactEmail: text('contact_email'),

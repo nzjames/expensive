@@ -4,9 +4,9 @@
 	import EditableCellCurrency from '$lib/components/EditableCellCurrency.svelte';
 	import EditableSelect from '$lib/components/EditableSelect.svelte';
 	import EditableCellDate from '$lib/components/EditableCellDate.svelte';
-	import { ymdTodayUTC } from '../../lib/helpers/date';
-	import { calcTotal } from '../../lib/helpers/total';
-	import { filterUpcoming, filterHistory, filterNext30, filterFuture } from '../../lib/helpers/filters';
+import { ymdTodayUTC } from '../../lib/helpers/date';
+import { calcTotal } from '../../lib/helpers/total';
+import { filterUpcoming, filterHistory, filterNext30, filterFuture } from '../../lib/helpers/filters';
 
 	let data = [];
 	let historyData = [];
@@ -20,7 +20,21 @@
 	let today = ymdTodayUTC();
 
 	// Set your table name here (must match your schema keys in update endpoint)
-	const tableName = 'expenseHistory';
+const tableName = 'expenseHistory';
+// Column width hints using Tailwind; Note column flexes (auto)
+const colClasses = [
+  'w-64',  // Name
+  'w-40',  // Provider
+  'w-40',  // Type
+  'w-36',  // Status
+  'w-16',  // Freq Interval
+  'w-24',  // Freq Unit
+  'w-24',  // Payment Method
+  'w-24',  // Amount
+  'w-32',  // Expense Date
+  'w-32',  // Actual Date
+  'w-auto' // Note (flex)
+];
 
 	onMount(async () => {
 		const res = await fetch('/api/history'); // your read endpoint
@@ -62,12 +76,17 @@
 
 
 
-<h1 class="px-8 pb-8 text-lg font-semibold">History</h1>
-<section class="pb-8">
+<h1 class="px-4 pb-4 text-lg font-semibold">History</h1>
+<section class="pb-4">
 	{#if data.length === 0}
 		<p>No upcoming expenses</p>
 	{:else}
-		<table class="min-w-full border-collapse border border-gray-300">
+		<table class="table-fixed min-w-full border-collapse border border-gray-300">
+			<colgroup>
+				{#each colClasses as c}
+					<col class={c} />
+				{/each}
+			</colgroup>
 			<thead>
 				<tr class="bg-gray-100">
 					<td class="border border-gray-300 px-4 py-1 text-left text-sm font-semibold text-gray-700">Name</td>
@@ -85,7 +104,7 @@
 			</thead>
 			<tbody>
 				{#each historyData as row (row.id)}
-					<tr class={`${row.id % 2 === 0 ? 'bg-white' : 'bg-gray-50'} has-[td.active]:bg-yellow-100`}>
+					<tr class={`odd:bg-gray-50 even:bg-white has-[td.active]:bg-yellow-100`}>
 						<EditableCell table={tableName} value={row.name} rowId={row.id} field="name" on:update={handleUpdate} />
 						<EditableCell table={tableName} value={row.provider} rowId={row.id} field="provider" on:update={handleUpdate} />
 						<EditableCell table={tableName} value={row.type} rowId={row.id} field="type" on:update={handleUpdate} />
@@ -110,4 +129,3 @@
 		</table>
 	{/if}
 </section>
-

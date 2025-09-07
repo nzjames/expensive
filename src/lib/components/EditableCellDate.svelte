@@ -6,6 +6,7 @@
 	export let rowId: number | string;
 	export let field: string;
 	export let table: string;
+	export let autostart: boolean = false;
 
 	const formatDate = (isoDate: string) => {
 		if (!isoDate) return '';
@@ -33,11 +34,7 @@
 
 	const isValidDate = (y: number, m: number, d: number) => {
 		const date = new Date(y, m - 1, d);
-		return (
-			date.getFullYear() === y &&
-			date.getMonth() === m - 1 &&
-			date.getDate() === d
-		);
+		return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
 	};
 
 	const validateDate = (isoDate: string) => {
@@ -47,14 +44,4 @@
 	};
 </script>
 
-<EditableCell
-	{value}
-	{rowId}
-	{field}
-	{table}
-    inputType="date"
-	formatter={formatDate}
-	parser={parseDate}
-	validator={validateDate}
-	on:update
-/>
+<EditableCell {value} {rowId} {field} {table} {autostart} inputType="date" formatter={formatDate} parser={parseDate} validator={validateDate} on:update />

@@ -6,6 +6,7 @@ import { expenseSeries, expenseHistory } from '../../db/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import { SeriesStatus } from '../../../data';
 import { addInterval, ymdTodayUTC } from '../../../helpers/date';
+import { occurrencesBetween, nextAfter } from '../../recurrence';
 
 const lockDir = path.resolve(process.cwd(), '.joblocks');
 const lockFile = path.join(lockDir, 'ensure-next.lock');
@@ -38,49 +39,78 @@ function ensureNextSync() {
 
     try {
       db.transaction((tx) => {
-        // 1) Backfill past due rows until current > today
-        let current = tpl.nextDate;
-        let created = 0;
         const hardCap = 2000;
+        let created = 0;
 
-        while (current <= today) {
-          const exists = tx.select({ id: expenseHistory.id })
-            .from(expenseHistory)
-            .where(and(eq(expenseHistory.seriesId, tpl.id), eq(expenseHistory.expenseDate, current)))
-            .limit(1).all();
-
-          if (!exists.length) {
-            tx.insert(expenseHistory).values({
-              seriesId: tpl.id,
-              name: tpl.name ?? 'unnamed',
-              provider: tpl.provider ?? null,
-              type: tpl.type ?? null,
-              paymentMethod: tpl.paymentMethod ?? null,
-              amountCents: tpl.amountCents ?? null,
-              frequencyInterval: tpl.frequencyInterval,
-              frequencyUnit: tpl.frequencyUnit,
-              expenseDate: current,
-              status: 'pending',
-            }).run?.();
-            created++; console.log(`   ➕ Backfilled ${current}`);
-          } else {
-            console.log(`   ↪︎ Exists ${current}, skip`);
+        // 1) Backfill past due rows until current > today (inclusive of today)
+        if (tpl.rrule && tpl.rrule.trim().length) {
+          const dueDates = occurrencesBetween(tpl as any, tpl.nextDate!, today);
+          for (const d of dueDates) {
+            const exists = tx.select({ id: expenseHistory.id })
+              .from(expenseHistory)
+              .where(and(eq(expenseHistory.seriesId, tpl.id), eq(expenseHistory.expenseDate, d)))
+              .limit(1).all();
+            if (!exists.length) {
+              tx.insert(expenseHistory).values({
+                seriesId: tpl.id,
+                name: tpl.name ?? 'unnamed',
+                provider: tpl.provider ?? null,
+                type: tpl.type ?? null,
+                paymentMethod: tpl.paymentMethod ?? null,
+                amountCents: tpl.amountCents ?? null,
+                frequencyInterval: tpl.frequencyInterval,
+                frequencyUnit: tpl.frequencyUnit,
+                expenseDate: d,
+                status: 'pending',
+              }).run?.();
+              created++; console.log(`   ➕ Backfilled ${d}`);
+              if (created > hardCap) throw new Error('hardCap reached; check recurrence');
+            } else {
+              console.log(`   ↪︎ Exists ${d}, skip`);
+            }
           }
-          current = addInterval(current, tpl.frequencyInterval, tpl.frequencyUnit);
-          if (created > hardCap) throw new Error('hardCap reached; check recurrence');
+        } else {
+          let current = tpl.nextDate!;
+          while (current <= today) {
+            const exists = tx.select({ id: expenseHistory.id })
+              .from(expenseHistory)
+              .where(and(eq(expenseHistory.seriesId, tpl.id), eq(expenseHistory.expenseDate, current)))
+              .limit(1).all();
+            if (!exists.length) {
+              tx.insert(expenseHistory).values({
+                seriesId: tpl.id,
+                name: tpl.name ?? 'unnamed',
+                provider: tpl.provider ?? null,
+                type: tpl.type ?? null,
+                paymentMethod: tpl.paymentMethod ?? null,
+                amountCents: tpl.amountCents ?? null,
+                frequencyInterval: tpl.frequencyInterval,
+                frequencyUnit: tpl.frequencyUnit,
+                expenseDate: current,
+                status: 'pending',
+              }).run?.();
+              created++; console.log(`   ➕ Backfilled ${current}`);
+            } else {
+              console.log(`   ↪︎ Exists ${current}, skip`);
+            }
+            current = addInterval(current, tpl.frequencyInterval, tpl.frequencyUnit);
+            if (created > hardCap) throw new Error('hardCap reached; check recurrence');
+          }
         }
 
-        // current is now the first date > today (the desired single future row)
-
-        // 2) Ensure exactly ONE future row:
+        // 2) Ensure exactly ONE future row (keep earliest existing, else plan the desired next)
         const futureRows = tx.select({ id: expenseHistory.id, expenseDate: expenseHistory.expenseDate })
           .from(expenseHistory)
           .where(and(eq(expenseHistory.seriesId, tpl.id), gt(expenseHistory.expenseDate, today)))
           .orderBy(expenseHistory.expenseDate)
           .all();
 
+        let current: string;
         if (!futureRows.length) {
-          // insert the single desired future row at `current`
+          const desired = tpl.rrule && tpl.rrule.trim().length
+            ? nextAfter(tpl as any, today)
+            : addInterval(today, tpl.frequencyInterval, tpl.frequencyUnit);
+          if (!desired) throw new Error('Failed to compute next occurrence');
           tx.insert(expenseHistory).values({
             seriesId: tpl.id,
             name: tpl.name ?? 'unnamed',
@@ -90,13 +120,13 @@ function ensureNextSync() {
             amountCents: tpl.amountCents ?? null,
             frequencyInterval: tpl.frequencyInterval,
             frequencyUnit: tpl.frequencyUnit,
-            expenseDate: current,
+            expenseDate: desired,
             status: 'pending',
           }).run?.();
-          console.log(`   ➕ Planned future ${current}`);
+          console.log(`   ➕ Planned future ${desired}`);
+          current = desired;
         } else {
           const keep = futureRows[0].expenseDate; // earliest future
-          // delete any extra future rows after the earliest
           const extras = futureRows.slice(1);
           if (extras.length) {
             tx.delete(expenseHistory)
@@ -107,7 +137,6 @@ function ensureNextSync() {
               .run?.();
             console.log(`   🧹 Pruned ${extras.length} extra future row(s) after ${keep}`);
           }
-          // align current to the kept earliest future
           current = keep;
         }
 

@@ -8,6 +8,8 @@
 	export let table: string;
 	export let classDisplay: string = '';
 	export let inputType: string = 'text';
+	export let highlight: boolean = false;
+	export let autostart: boolean = false;
 
 	// Optional hooks
 	export let formatter: (v: any) => string | number = (v) => v;
@@ -20,13 +22,16 @@
 	let inputValue: string | number;
 	let inputRef: HTMLInputElement;
 
-	onMount(() => {
-		inputValue = formatter(value);
+	onMount(async () => {
+		inputValue = inputType === 'date' ? (value as any) : formatter(value);
+		if (autostart) {
+			await startEdit();
+		}
 	});
 
 	async function startEdit() {
 		editing = true;
-		inputValue = formatter(value);
+		inputValue = inputType === 'date' ? (value as any) : formatter(value);
 		await tick();
 		inputRef?.focus();
 		inputRef?.select();
@@ -60,10 +65,10 @@
 </script>
 
 {#if editing}
-	<td class="cursor-pointer px-0 py-0 text-sm text-gray-800 active relative ">
+	<td class={`active relative cursor-pointer border border-gray-300 px-0 py-0 text-sm text-gray-800 ${classDisplay}`}>
 		<input
 			bind:this={inputRef}
-			class={`w-full border border-blue-500 px-4 py-0 text-left text-sm bg-transparent absolute top-0 bottom-0 ${classDisplay}`}
+			class={`absolute inset-x-0 top-0 bottom-0 w-full border border-blue-500 bg-transparent px-4 py-0 text-left text-sm outline-none ${classDisplay}`}
 			type={inputType}
 			bind:value={inputValue}
 			on:blur={submit}
@@ -72,7 +77,7 @@
 	</td>
 {:else}
 	<td
-		class={`cursor-pointer border border-gray-300 px-4 py-1 text-sm text-gray-800 truncate ${classDisplay}`}
+		class={`cursor-pointer truncate border border-gray-300 px-4 py-1 text-sm text-gray-800 ${highlight ? 'active' : ''} ${classDisplay}`}
 		on:click={startEdit}
 		tabindex="0"
 		on:keydown={(e) => e.key === 'Enter' && startEdit()}

@@ -1,12 +1,19 @@
 <script lang="ts" use:useRunes>
 	import { FrequencyUnit, HistoryStatus } from '../data';
 	import { formatCurrency } from '../helpers/currency';
+	import pluralize from 'pluralize';
 
 	export let heading: string = 'heading';
 	export let total: number = 0;
 	export let totalMonth: number = 0;
 	export let data = [];
-	export let showFrequency: boolean;
+export let showFrequency: boolean;
+export let showFrequencyForOne: boolean = false;
+
+	function frequencyLabel(interval: number, unit: string) {
+		const base = String(unit || '').toLowerCase();
+		return `every ${interval} ${pluralize(base, interval)}`;
+	}
 </script>
 
 <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-md">
@@ -16,12 +23,12 @@
 		{formatCurrency(total)}
 	</div>
     <div class="grid col-span-2 row-start-2 grid-cols-subgrid auto-rows-auto gap-2">
-		{#each data as row (row.id)}
+		{#each data as row (row.id ?? `${row.seriesId}|${row.expenseDate}`)}
 			{#if row.status != HistoryStatus.Ignored}
 				<div class=" truncate">
 					{row.name}
-					{#if showFrequency && row.frequencyInterval != 1}
-						<span class="text-xs text-gray-500">every {row.frequencyInterval} {row.frequencyUnit}s</span>
+					{#if showFrequency && (showFrequencyForOne || row.frequencyInterval != 1)}
+						<span class="text-xs text-gray-500">{frequencyLabel(row.frequencyInterval, row.frequencyUnit)}</span>
                     {/if}
 				</div>
 				<div class="text-right font-medium">{formatCurrency(row.amountCents)}</div>

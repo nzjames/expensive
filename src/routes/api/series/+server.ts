@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db/client';
 import { expenseSeries } from '$lib/server/db/schema';
 import { SeriesStatus, FrequencyUnit } from '$lib/data';
-import { ymdTodayUTC } from '../../../lib/helpers/date.js';
+import { ymdTodayUTC } from '$lib/helpers/date.js';
+import { buildRRuleString } from '$lib/server/recurrence';
 import { eq } from 'drizzle-orm';
 
 export async function GET() {
@@ -32,6 +33,11 @@ export async function POST({ request }) {
     paymentMethod: body.paymentMethod ?? null,
     nextDate: body.nextDate ?? today
   };
+
+  // Derive RRULE from cadence + anchor
+  if (values.nextDate) {
+    (values as any).rrule = buildRRuleString(values.nextDate, values.frequencyUnit, values.frequencyInterval);
+  }
 
   // better-sqlite3 via drizzle returns lastInsertRowid on .run()
   const res: any = db.insert(expenseSeries).values(values).run?.() ?? await db.insert(expenseSeries).values(values).returning({ id: expenseSeries.id });

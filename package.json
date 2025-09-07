@@ -25,7 +25,9 @@
 	"dependencies": {
 		"better-sqlite3": "^12.2.0",
 		"date-fns": "^4.1.0",
-		"drizzle-orm": "^0.44.3"
+		"drizzle-orm": "^0.44.3",
+		"pluralize": "^8.0.0",
+		"rrule": "^2.8.1"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -39,6 +41,7 @@
 		"@tailwindcss/vite": "^4.0.0",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/node": "^24.2.1",
+		"@types/rrule": "^2.1.7",
 		"@vitest/browser": "^3.2.3",
 		"drizzle-kit": "^0.31.4",
 		"eslint": "^9.18.0",
