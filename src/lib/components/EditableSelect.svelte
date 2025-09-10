@@ -1,17 +1,21 @@
-<script lang="ts" use:useRunes>
-	import { createEventDispatcher } from 'svelte';
-	import { tick, onMount } from 'svelte';
+<script lang="ts">
+    import { createEventDispatcher } from 'svelte';
+    import { tick, onMount } from 'svelte';
+    import type { SeriesUpdatableColumn, HistoryUpdatableColumn } from '$lib/validation';
 
-	export let value: string | number;
-	export let rowId: number | string;
-	export let field: string;
-	export let table: string;
+    export let value: string | number;
+    export let rowId: number | string;
+    export let field: SeriesUpdatableColumn | HistoryUpdatableColumn | string;
+    export let table: 'expenseSeries' | 'expenseHistory' | string;
 	export let options: (string | { label: string; value: string | number })[] = [];
 	export let classTd: string = '';
 	export let highlight: boolean = false;
 	export let autostart: boolean = false;
 
-	const dispatch = createEventDispatcher();
+    type UpdateEvent =
+        | { table: 'expenseSeries'; id: number | string; column: SeriesUpdatableColumn | string; value: unknown }
+        | { table: 'expenseHistory'; id: number | string; column: HistoryUpdatableColumn | string; value: unknown };
+    const dispatch = createEventDispatcher<{ update: UpdateEvent }>();
 
 	let editing = false;
 	let selectedValue: string | number = value;
@@ -44,12 +48,13 @@
 		selectedValue = value;
 	}
 
-	function submit() {
-		if (selectedValue !== value) {
-			dispatch('update', { table, id: rowId, column: field, value: selectedValue });
-		}
-		editing = false;
-	}
+    function submit() {
+        if (selectedValue !== value) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            dispatch('update', { table: table as any, id: rowId, column: field as any, value: selectedValue });
+        }
+        editing = false;
+    }
 
 	onMount(() => {
 		if (autostart) startEdit();

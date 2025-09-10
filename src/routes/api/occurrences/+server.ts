@@ -5,6 +5,8 @@ import { SeriesStatus } from '$lib/data';
 import { and, eq, inArray, gte, lte } from 'drizzle-orm';
 import { ymdTodayUTC, cutoff30Days } from '$lib/helpers/date';
 import { occurrencesBetween } from '$lib/server/recurrence';
+import { z } from 'zod';
+import { zOccurrencesQuery } from '$lib/validation';
 
 type Instance = {
   source: 'history' | 'projection';
@@ -22,21 +24,21 @@ type Instance = {
   projectedStatus?: 'projected'; // projection only
 };
 
-function parseSeriesIds(param: string | null): number[] | null {
-  if (!param) return null;
-  const parts = param.split(',').map((s) => s.trim()).filter(Boolean);
-  const ids = parts.map((p) => Number(p)).filter((n) => Number.isFinite(n));
-  return ids.length ? ids : null;
-}
-
 export async function GET({ url }) {
-  const today = ymdTodayUTC();
-  const start = url.searchParams.get('start') || today;
-  const end = url.searchParams.get('end') || cutoff30Days();
-  const includeParam = (url.searchParams.get('include') || 'history,projection').toLowerCase();
-  const includeHistory = includeParam.includes('history');
-  const includeProjection = includeParam.includes('projection');
-  const seriesIds = parseSeriesIds(url.searchParams.get('seriesId'));
+  try {
+    const today = ymdTodayUTC();
+    const qp = zOccurrencesQuery.parse({
+      start: url.searchParams.get('start') ?? undefined,
+      end: url.searchParams.get('end') ?? undefined,
+      include: url.searchParams.get('include') ?? undefined,
+      seriesId: url.searchParams.get('seriesId') ?? undefined
+    });
+
+    const start = qp.start || today;
+    const end = qp.end || cutoff30Days();
+    const includeHistory = qp.include.includes('history');
+    const includeProjection = qp.include.includes('projection');
+    const seriesIds = qp.seriesId && qp.seriesId.length ? qp.seriesId : null;
 
   // Series to consider for projections (active only)
   const seriesWhere = seriesIds
@@ -120,5 +122,14 @@ export async function GET({ url }) {
   }
 
   results.sort((a, b) => a.expenseDate.localeCompare(b.expenseDate));
-  return json(results);
+    return json(results);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return new Response(JSON.stringify({ error: 'Invalid query params', issues: err.issues }), {
+        status: 400
+      });
+    }
+    console.error('GET /api/occurrences error', err);
+    return new Response('Internal Server Error', { status: 500 });
+  }
 }

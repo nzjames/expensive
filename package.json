@@ -5,14 +5,21 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:prod": "DATABASE_URL=./expense-prod.db vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
+		"preview:dev": "DATABASE_URL=./expense-dev.db vite preview",
+		"start": "NODE_ENV=production node build",
+		"start:dev": "DATABASE_URL=./expense-dev.db NODE_ENV=production node build",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest",
+		"test:client": "vitest run --project client",
+		"test:server": "vitest run --project server --pool=threads",
+		"test:ci": "npm run test:server",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
 		"gen:expenses": "tsx cli/generate-expenses.ts",
@@ -20,17 +27,21 @@
 		"db:migrate": "drizzle-kit migrate",
 		"seed:dev": "tsx src/lib/server/db/seed.ts",
 		"job:ensure-next:dev": "tsx src/lib/server/jobs/cli/ensure-next.ts",
-		"job:ensure-next": "node build/src/lib/server/jobs/cli/ensure-next.js"
+		"job:ensure-next:dev:prod": "DATABASE_URL=./expense-prod.db tsx src/lib/server/jobs/cli/ensure-next.ts",
+		"job:ensure-next": "node build/src/lib/server/jobs/cli/ensure-next.js",
+		"db:backup": "tsx cli/backup-db.ts"
 	},
 	"dependencies": {
 		"better-sqlite3": "^12.2.0",
 		"date-fns": "^4.1.0",
 		"drizzle-orm": "^0.44.3",
 		"pluralize": "^8.0.0",
-		"rrule": "^2.8.1"
+		"rrule": "^2.8.1",
+		"zod": "^3.25.76"
 	},
-	"devDependencies": {
-		"@eslint/compat": "^1.2.5",
+  "devDependencies": {
+    "@sveltejs/adapter-node": "^5.2.9",
+    "@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
 		"@playwright/test": "^1.49.1",
 		"@sveltejs/adapter-auto": "^6.0.0",

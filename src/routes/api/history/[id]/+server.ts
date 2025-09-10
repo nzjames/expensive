@@ -1,18 +1,33 @@
 import { db } from '$lib/server/db/client';
 import { expenseHistory } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { validateHistoryUpdate } from '$lib/validation';
 
 export async function PUT({ params, request }) {
-  const id = Number(params.id);
-  const { field, value } = await request.json();
+  try {
+    const id = z.coerce.number().int().positive().parse(params.id);
+    const body = (await request.json().catch(() => ({}))) as unknown;
+    const parsed = z
+      .object({ field: z.string().trim().min(1), value: z.unknown() })
+      .parse(body);
 
-  if (!field) {
-    return new Response(JSON.stringify({ error: 'Missing field name' }), { status: 400 });
+    const val = validateHistoryUpdate(parsed.field, parsed.value);
+
+    await db
+      .update(expenseHistory)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .set({ [parsed.field]: val as any })
+      .where(eq(expenseHistory.id, id));
+
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return new Response(JSON.stringify({ error: 'Validation failed', issues: err.issues }), {
+        status: 400
+      });
+    }
+    console.error('PUT /api/history/[id] error', err);
+    return new Response('Internal Server Error', { status: 500 });
   }
-
-  await db.update(expenseHistory)
-    .set({ [field]: value })
-    .where(eq(expenseHistory.id, id));
-
-  return new Response(JSON.stringify({ success: true }), { status: 200 });
 }

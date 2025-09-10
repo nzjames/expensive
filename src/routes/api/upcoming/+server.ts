@@ -1,11 +1,19 @@
 import { json } from '@sveltejs/kit';
 import { ymdTodayUTC, cutoff30Days } from '$lib/helpers/date';
 import { GET as getOccurrences } from '../occurrences/+server';
+import { z } from 'zod';
+import { zISODate } from '$lib/validation';
 
 export async function GET({ url, fetch, params, request, route, setHeaders, locals, platform }) {
   // Proxy to /api/occurrences with start=today and end=until
   const today = ymdTodayUTC();
-  const until = url.searchParams.get('until') || cutoff30Days();
+  const until = (() => {
+    try {
+      return (zISODate.optional().parse(url.searchParams.get('until') ?? undefined)) || cutoff30Days();
+    } catch {
+      return cutoff30Days();
+    }
+  })();
 
   // Build a new URLSearchParams preserving seriesId/include if present
   const qp = new URLSearchParams();
@@ -22,4 +30,3 @@ export async function GET({ url, fetch, params, request, route, setHeaders, loca
 
   return getOccurrences({ url: newUrl, fetch, params, request, route, setHeaders, locals, platform } as any);
 }
-

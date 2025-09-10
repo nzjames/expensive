@@ -2,37 +2,16 @@
 
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
-## Creating a project
+Project context for assistants and contributors: see `docs/AI_CONTEXT.md` and `docs/DECISIONS.md`.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Testing & DB isolation
 
-```sh
-# create a new project in the current directory
-npx sv create
+- Vitest (server) uses a temp SQLite DB per worker; migrations run automatically. The temp DB is deleted after tests.
+- Playwright e2e starts the preview server with a temp DB as `DATABASE_URL`; migrations run before the server starts and the temp DB is deleted after tests.
+- Your primary DB (e.g. `./expense-dev.db` or `./expense-prod.db`) is not touched by tests.
 
-# create a new project in my-app
-npx sv create my-app
-```
+## Backup
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- Create a WAL-safe backup of the current DB with:
+  - `npm run db:backup` (uses `DATABASE_URL` or defaults to `./expense-dev.db`)
+- Backups are written to the repo root as `sqlite.YYYYMMDD-HHmmss.db` (or derived from your DB filename).

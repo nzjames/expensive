@@ -5,6 +5,12 @@ import { SeriesStatus, FrequencyUnit } from '$lib/data';
 import { ymdTodayUTC } from '$lib/helpers/date.js';
 import { buildRRuleString } from '$lib/server/recurrence';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import {
+  zExpenseSeriesCreateInput,
+  validateSeriesUpdate,
+  SeriesUpdatableColumns
+} from '$lib/validation';
 
 export async function GET() {
 	try {
@@ -18,39 +24,69 @@ export async function GET() {
 
 // CREATE
 export async function POST({ request }) {
-  const body = await request.json().catch(() => ({}));
-  const today = ymdTodayUTC();
+  try {
+    const body = (await request.json().catch(() => ({}))) as unknown;
+    const parsed = zExpenseSeriesCreateInput.parse(body);
+    const today = ymdTodayUTC();
 
-  // Safe defaults to satisfy NOT NULL constraints
-  const values = {
-    name: body.name ?? 'New series',
-    status: body.status ?? SeriesStatus.Active,
-    frequencyInterval: body.frequencyInterval ?? 1,
-    frequencyUnit: body.frequencyUnit ?? FrequencyUnit.Month,
-    amountCents: body.amountCents ?? 0,
-    provider: body.provider ?? null,
-    type: body.type ?? null,
-    paymentMethod: body.paymentMethod ?? null,
-    nextDate: body.nextDate ?? today
-  };
+    const values = {
+      name: parsed.name,
+      status: parsed.status ?? SeriesStatus.Active,
+      frequencyInterval: parsed.frequencyInterval ?? 1,
+      frequencyUnit: parsed.frequencyUnit ?? FrequencyUnit.Month,
+      amountCents: parsed.amountCents ?? 0,
+      provider: parsed.provider ?? null,
+      type: parsed.type ?? null,
+      paymentMethod: parsed.paymentMethod ?? null,
+      contactEmail: parsed.contactEmail ?? null,
+      portalUrl: parsed.portalUrl ?? null,
+      nextDate: parsed.nextDate ?? today,
+      renewalDate: parsed.renewalDate ?? null,
+      verifiedDate: parsed.verifiedDate ?? null
+    } as Record<string, any>;
 
-  // Derive RRULE from cadence + anchor
-  if (values.nextDate) {
-    (values as any).rrule = buildRRuleString(values.nextDate, values.frequencyUnit, values.frequencyInterval);
+    if (values.nextDate) {
+      values.rrule = buildRRuleString(values.nextDate, values.frequencyUnit, values.frequencyInterval);
+    }
+
+    const res: any =
+      db.insert(expenseSeries).values(values).run?.() ??
+      (await db.insert(expenseSeries).values(values).returning({ id: expenseSeries.id }));
+    const id =
+      typeof res?.lastInsertRowid !== 'undefined'
+        ? Number(res.lastInsertRowid)
+        : Number(res?.[0]?.id);
+
+    const created = (
+      await db.select().from(expenseSeries).where(eq(expenseSeries.id, id)).limit(1)
+    )[0];
+    return json(created, { status: 201 });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return new Response(JSON.stringify({ error: 'Validation failed', issues: err.issues }), {
+        status: 400
+      });
+    }
+    console.error('POST /api/series error', err);
+    return new Response('Internal Server Error', { status: 500 });
   }
-
-  // better-sqlite3 via drizzle returns lastInsertRowid on .run()
-  const res: any = db.insert(expenseSeries).values(values).run?.() ?? await db.insert(expenseSeries).values(values).returning({ id: expenseSeries.id });
-  const id = typeof res?.lastInsertRowid !== 'undefined' ? Number(res.lastInsertRowid) : Number(res?.[0]?.id);
-
-  const created = (await db.select().from(expenseSeries).where(eq(expenseSeries.id, id)).limit(1))[0];
-  return json(created, { status: 201 });
 }
 
 // DELETE (used if user cancels a just-created blank row)
 export async function DELETE({ url }) {
-  const id = Number(url.searchParams.get('id'));
-  if (!id) return json({ error: 'id required' }, { status: 400 });
-  await (db.delete(expenseSeries).where(eq(expenseSeries.id, id)).run?.() ?? db.delete(expenseSeries).where(eq(expenseSeries.id, id)));
-  return json({ ok: true });
+  try {
+    const idRaw = url.searchParams.get('id');
+    const id = z.coerce.number().int().positive().parse(idRaw);
+    await (
+      db.delete(expenseSeries).where(eq(expenseSeries.id, id)).run?.() ??
+      db.delete(expenseSeries).where(eq(expenseSeries.id, id))
+    );
+    return json({ ok: true });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return json({ error: 'Invalid id' }, { status: 400 });
+    }
+    console.error('DELETE /api/series error', err);
+    return new Response('Internal Server Error', { status: 500 });
+  }
 }

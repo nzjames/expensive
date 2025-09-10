@@ -1,0 +1,15 @@
+node_modules
+.svelte-kit
+test-results
+e2e
+.git
+.gitignore
+*.log
+*.db*
+playwright-report
+coverage
+dist
+tmp
+**/*.tsbuildinfo
+.vscode
+.joblocks

@@ -1,4 +1,4 @@
-<script lang="ts" use:useRunes>
+<script lang="ts">
 	import { FrequencyUnit, HistoryStatus } from '../data';
 	import { formatCurrency } from '../helpers/currency';
 	import pluralize from 'pluralize';

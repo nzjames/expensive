@@ -1,4 +1,4 @@
-<script lang="ts" use:useRunes>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import SummaryCard from '$lib/components/SummaryCard.svelte';
     import EditableCell from '$lib/components/EditableCell.svelte';

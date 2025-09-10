@@ -1,11 +1,12 @@
-<script lang="ts" use:useRunes>
-	import { createEventDispatcher } from 'svelte';
-	import { tick, onMount } from 'svelte';
+<script lang="ts">
+    import { createEventDispatcher } from 'svelte';
+    import { tick, onMount } from 'svelte';
+    import type { SeriesUpdatableColumn, HistoryUpdatableColumn } from '$lib/validation';
 
-	export let value: string | number;
-	export let rowId: number | string;
-	export let field: string;
-	export let table: string;
+    export let value: string | number;
+    export let rowId: number | string;
+    export let field: SeriesUpdatableColumn | HistoryUpdatableColumn | string;
+    export let table: 'expenseSeries' | 'expenseHistory' | string;
 	export let classDisplay: string = '';
 	export let inputType: string = 'text';
 	export let highlight: boolean = false;
@@ -16,7 +17,10 @@
 	export let parser: (v: any) => any = (v) => v;
 	export let validator: (v: any) => boolean = () => true;
 
-	const dispatch = createEventDispatcher();
+    type UpdateEvent =
+        | { table: 'expenseSeries'; id: number | string; column: SeriesUpdatableColumn | string; value: unknown }
+        | { table: 'expenseHistory'; id: number | string; column: HistoryUpdatableColumn | string; value: unknown };
+    const dispatch = createEventDispatcher<{ update: UpdateEvent }>();
 
 	let editing = false;
 	let inputValue: string | number;
@@ -49,9 +53,10 @@
 			return;
 		}
 
-		if (parsed !== value) {
-			dispatch('update', { table, id: rowId, column: field, value: parsed });
-		}
+        if (parsed !== value) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            dispatch('update', { table: table as any, id: rowId, column: field as any, value: parsed });
+        }
 		editing = false;
 	}
 

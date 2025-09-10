@@ -1,4 +1,4 @@
-<script lang="ts" use:useRunes>
+<script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import EditableCell from '$lib/components/EditableCell.svelte';
 	import EditableCellCurrency from '$lib/components/EditableCellCurrency.svelte';

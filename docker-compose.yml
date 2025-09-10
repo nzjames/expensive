@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    image: expense-app:latest
+    container_name: expense-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=/data/expense-prod.db
+      # Optional: BACKUP_DIR to change backup location inside container
+      # - BACKUP_DIR=/data/backups
+    ports:
+      - "3000:3000"
+    volumes:
+      - /volume1/docker/expense/data:/data
+    # healthcheck:
+    #   test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+    #   interval: 30s
+    #   timeout: 3s
+    #   retries: 3

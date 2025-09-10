@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
@@ -5,6 +6,6 @@ export default defineConfig({
   schema: "./src/lib/server/db/schema.ts",
   out: "./.drizzle/migrations",   // migration files live here
   dbCredentials: {
-    url: "./sqlite.db"           // path to your sqlite file
+    url: process.env.DATABASE_URL || "./expense-dev.db"           // path to your sqlite file
   },
 });
