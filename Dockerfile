@@ -1,16 +1,25 @@
 # --- Build stage ---
+# syntax=docker/dockerfile:1.6
+
+ARG TARGETPLATFORM
+
+# Build dependencies for the target app using a fresh resolution
+# This avoids npm optional-deps bugs across architectures (e.g. Rollup prebuilds)
 FROM node:22-slim AS builder
 WORKDIR /app
 ENV NODE_ENV=development
 
-COPY package.json package-lock.json ./
-RUN npm ci || npm install
+# Resolve dev dependencies inside the container for the current platform
+# Intentionally avoid package-lock.json here to allow correct opt-deps selection
+COPY package.json ./
+RUN npm install
 
 COPY . .
-RUN npm run build
+# Ensure SvelteKit internals are synced after sources are available
+RUN npm run prepare && npm run build
 
 # --- Runtime stage ---
-FROM node:22-slim AS runner
+FROM --platform=${TARGETPLATFORM} node:22-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 

@@ -1,0 +1,14 @@
+services:
+  app:
+    # Run the image under x86_64 emulation on Apple Silicon
+    platform: linux/amd64
+    # Use a local data folder when running on your Mac
+    volumes:
+      - ./data:/data
+    # If you prefer to build the amd64 image via compose (Docker Desktop uses buildx),
+    # uncomment the next lines. Alternatively, build with `docker buildx` (recommended).
+    # build:
+    #   context: .
+    #   platforms:
+    #     - linux/amd64
+
